@@ -1,28 +1,173 @@
-import React, { useState } from "react";
-import { StyleSheet, Text, View, Button, Alert } from "react-native";
+import React, { useState, useEffect } from "react";
+import Moment from "moment";
+import { extendMoment } from "moment-range";
+import { LinearGradient } from 'expo-linear-gradient';
+// import { useFonts } from 'expo-font';
 
-import AppButton from "./components/AppButton";
+import {
+  StyleSheet,
+  Text,
+  View,
+  Alert,
+  Image,
+  Dimensions,
+  AsyncStorage,
+} from "react-native";
+
+import ResetButton from "./components/ResetButton";
+import QuitButton from "./components/QuitButton";
 
 export default function App() {
-  const [count, setCount] = useState(0);
+  // let [fontsLoaded] = useFonts({
+  //   'PoppinsSemiBold': require('./assets/fonts/Poppins-SemiBold.ttf'),
+  //   'PoppinsBold': require('./assets/fonts/Poppins-Bold.ttf'),
+  //   'PoppinsRegular': require('./assets/fonts/Poppins-Regular.ttf'),
+  // });
 
-  const onButtonPress = () => {
-    Alert.alert("Button clicked!");
+  const moment = extendMoment(Moment);
+  var [quitDate, setQuitDate] = useState();
+  var [isSmoking, setSmokingStatus] = useState();
+  var [daysSmokeFree, setDaysSmokeFree] = useState();
+  var [btns, setBtns] = useState(true);
+
+  var today = moment();
+  var smoke;
+
+async function smokeFree(dateStored, smokingStatus) {
+    const start = new Date(dateStored);
+    const end = new Date(today);
+    const range = moment.range(start, end);
+
+    daysSmokeFree = range.diff('days') + " Days";
+
+    if (dateStored === "none") {
+      setDaysSmokeFree("0 Days");
+      setQuitDate("You're still smoking...");
+      // setSmokingStatus(smokingStatus);
+    } else {
+      setQuitDate("You Quit Smoking On: \n" + quitDate);
+      setDaysSmokeFree(daysSmokeFree);
+      // setSmokingStatus(smokingStatus);
+    }
   };
 
-  const countIncrementHandler = () => {
-    setCount(count + 1);
+  const quitNow = () => {
+    isSmoking = false;
+    smoke = isSmoking.toString();
+    
+    var z = JSON.stringify(today).split('T');
+    z.pop();
+    var spliT = z.toString().split('"');
+    quitDate = spliT.pop();
+    
+    Alert.alert("Congratulations! This is a big step, and you'll do great.")
+    setBtns(false);
+    setQuitDate(quitDate);
+    updateAsyncStorage(quitDate, smoke);
   };
   
+  const resetBtn  = () => {
+    Alert.alert(
+      "You've come so far!",
+      "Are you sure you want to restart?",
+      [
+        {
+          text: "No, I want to keep trying!",
+          onPress: () => console.log("Cancel Pressed"),
+          style: "cancel"
+        },
+        { text: "Yes", onPress: () => {
+          quitDate = "none";
+          smoke = "true";
+          
+          setQuitDate(quitDate);
+          setBtns(true);
+          updateAsyncStorage(quitDate, smoke);
+        }}
+      ],
+      { cancelable: false }
+    );
+  };
+
+  function updateAsyncStorage(quitDate, smoke) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        await AsyncStorage.removeItem("quitDate");
+        await AsyncStorage.removeItem("isSmoking");
+
+        await AsyncStorage.setItem("quitDate", quitDate);
+        await AsyncStorage.setItem("isSmoking", smoke);
+        
+        fetchDate();
+        return resolve(true);
+      } catch (e) {
+        return reject(e);
+      } 
+    }); 
+  };
+
+  useEffect(() => {
+    fetchDate();
+  }, []);
+  
+
+  async function fetchDate() {
+    const dateStored = await AsyncStorage.getItem("quitDate");
+    const smokingStatus = await AsyncStorage.getItem("isSmoking");
+    
+    if (dateStored) {
+      setQuitDate(dateStored);
+      setSmokingStatus(smokingStatus);
+      smokeFree(dateStored, smokingStatus);
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={[styles.text, styles.textTitle]}>Hello world!</Text>
-      <Text style={styles.text}>Welcome to React Native</Text>
-      <Button title="Button" onPress={onButtonPress} />
-      <View>
-        <Text>Count: {count}</Text>
+      <LinearGradient 
+        colors={
+          btns ? ['#FFFFFF', '#F6E9CF', '#C68308', '#AA6F00'] : ['#00B786', '#BCFDFB']}
+        locations={btns ? [0,0.25,0.85,1] : [0,1]}
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: 0,
+          height: Dimensions.get("window").height,
+        }}
+      />
+      <View style={styles.topContainer}>
+        <Text style={styles.smokeFree}>{daysSmokeFree}</Text>
+        <Text style={styles.textMd}>Smoke Free</Text>
+        <Image
+          style={styles.image}
+          source={
+            btns
+            ? require("./assets/images/cigarette.png")
+            : require("./assets/images/no-cigarette.png")
+          }
+        />
+        <Text style={styles.quiteDate}>{quitDate}</Text>
       </View>
-      <AppButton countIncrementHandler={countIncrementHandler} />
+
+      <View style={styles.btnContainer}>
+        <View style={
+          btns
+            ? styles.quitContainer
+            : styles.hideQuit 
+          }>
+          <QuitButton  quitNow={quitNow} />
+        </View>
+
+        <View style={
+          btns
+            ? styles.hideReset 
+            : styles.resetContainer
+          }>
+          <ResetButton resetBtn={resetBtn}/>
+        </View>
+      </View>
+
     </View>
   );
 }
@@ -30,24 +175,80 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "whitesmoke",
     alignItems: "center",
     justifyContent: "center",
   },
-  text: {
-    fontSize: 15,
+  topContainer: {
+    flex: 3,
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#141414",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+        width: 0,
+        height: 2,
+    },
+    shadowOpacity: 0.5,
+    shadowRadius: 3.84,
+    elevation: 5,
+    marginTop: 60,
+    paddingVertical: 150,
+    width: Dimensions.get("window").width - 50,
   },
-  counterBtn: {
-    marginTop: 10,
-    backgroundColor: "purple",
-    padding: 20,
+  text: { //font family regular
+    fontSize: 20,
+    color: "#141414",
+    textAlign: 'center',
+    // fontFamily: "PoppinsRegular",
   },
-  counterBtnText: {
-    color: "white",
+  textMd: { //font family, semi-bold
+    fontSize: 20,
+    color: "#141414",
+    textAlign: 'center',
+    // fontFamily: "PoppinsSemiBold",
   },
-  textTitle: {
-    color: "purple",
-    fontSize: 25,
-    fontWeight: "700",
+  quiteDate: { //font family bold
+  color: "#141414",
+  fontSize: 20,
+  textAlign: 'center',
+    // fontFamily: "PoppinsBold",
+  },
+  smokeFree: {
+    color: "#141414",
+    fontSize: 40,
+    textTransform: "uppercase",
+    // fontFamily: "PoppinsBold",
+  },
+  image: {
+    width: Dimensions.get("window").width - 100,
+    height: 200,
+    marginVertical: 30,
+    resizeMode: "contain",
+    // backgroundColor: "green",
+  },
+  btnContainer: {
+    flex: 2,
+    width: Dimensions.get("window").width,
+    justifyContent: "center",
+    alignItems: "center",
+    // backgroundColor: "green",
+  },
+  quitContainer: {
+    marginVertical: 30,
+    // backgroundColor: "blue",
+  },
+  resetContainer: {
+    marginVertical: 30,
+    // backgroundColor: "red",
+  },
+  hideQuit: {
+    opacity: 0,
+    flex: 1,
+  },
+  hideReset: {
+    opacity: 0,
+    flex: 1,
   },
 });
