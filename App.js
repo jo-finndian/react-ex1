@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import Moment from "moment";
 import { extendMoment } from "moment-range";
 import { LinearGradient } from 'expo-linear-gradient';
-// import { useFonts } from 'expo-font';
+import { useFonts } from 'expo-font';
+import { AppLoading } from 'expo';
 
 import {
   StyleSheet,
@@ -18,38 +19,20 @@ import ResetButton from "./components/ResetButton";
 import QuitButton from "./components/QuitButton";
 
 export default function App() {
-  // let [fontsLoaded] = useFonts({
-  //   'PoppinsSemiBold': require('./assets/fonts/Poppins-SemiBold.ttf'),
-  //   'PoppinsBold': require('./assets/fonts/Poppins-Bold.ttf'),
-  //   'PoppinsRegular': require('./assets/fonts/Poppins-Regular.ttf'),
-  // });
+  let [fontsLoaded] = useFonts({
+    'PoppinsSemiBold': require('./assets/fonts/Poppins-SemiBold.ttf'),
+    'PoppinsBold': require('./assets/fonts/Poppins-Bold.ttf'),
+    'PoppinsRegular': require('./assets/fonts/Poppins-Regular.ttf'),
+  });
 
   const moment = extendMoment(Moment);
   var [quitDate, setQuitDate] = useState();
-  var [isSmoking, setSmokingStatus] = useState();
+  var [isSmoking, setSmokingStatus] = useState(); 
   var [daysSmokeFree, setDaysSmokeFree] = useState();
-  var [btns, setBtns] = useState(true);
+  var [btns, setBtns] = useState();
 
   var today = moment();
   var smoke;
-
-async function smokeFree(dateStored, smokingStatus) {
-    const start = new Date(dateStored);
-    const end = new Date(today);
-    const range = moment.range(start, end);
-
-    daysSmokeFree = range.diff('days') + " Days";
-
-    if (dateStored === "none") {
-      setDaysSmokeFree("0 Days");
-      setQuitDate("You're still smoking...");
-      // setSmokingStatus(smokingStatus);
-    } else {
-      setQuitDate("You Quit Smoking On: \n" + quitDate);
-      setDaysSmokeFree(daysSmokeFree);
-      // setSmokingStatus(smokingStatus);
-    }
-  };
 
   const quitNow = () => {
     isSmoking = false;
@@ -59,11 +42,13 @@ async function smokeFree(dateStored, smokingStatus) {
     z.pop();
     var spliT = z.toString().split('"');
     quitDate = spliT.pop();
-    
     Alert.alert("Congratulations! This is a big step, and you'll do great.")
+    
     setBtns(false);
     setQuitDate(quitDate);
+    setSmokingStatus(isSmoking);
     updateAsyncStorage(quitDate, smoke);
+    console.log("updated quit");
   };
   
   const resetBtn  = () => {
@@ -78,11 +63,14 @@ async function smokeFree(dateStored, smokingStatus) {
         },
         { text: "Yes", onPress: () => {
           quitDate = "none";
-          smoke = "true";
-          
+          isSmoking = true;
+          smoke = isSmoking.toString();
+
           setQuitDate(quitDate);
+          setSmokingStatus(isSmoking);
           setBtns(true);
           updateAsyncStorage(quitDate, smoke);
+          console.log("updated reset");
         }}
       ],
       { cancelable: false }
@@ -98,6 +86,7 @@ async function smokeFree(dateStored, smokingStatus) {
         await AsyncStorage.setItem("quitDate", quitDate);
         await AsyncStorage.setItem("isSmoking", smoke);
         
+        console.log("async updated successfully");
         fetchDate();
         return resolve(true);
       } catch (e) {
@@ -105,24 +94,52 @@ async function smokeFree(dateStored, smokingStatus) {
       } 
     }); 
   };
-
-  useEffect(() => {
-    fetchDate();
-  }, []);
   
-
   async function fetchDate() {
     const dateStored = await AsyncStorage.getItem("quitDate");
     const smokingStatus = await AsyncStorage.getItem("isSmoking");
-    
+
     if (dateStored) {
       setQuitDate(dateStored);
       setSmokingStatus(smokingStatus);
       smokeFree(dateStored, smokingStatus);
     }
+
+    console.log("data fetched. Date: " + dateStored + " Smoking: " + smokingStatus);
+  }
+
+  useEffect(() => {
+    fetchDate();
+  }, []);
+
+  function smokeFree(dateStored, smokingStatus) {
+    console.log("here!");
+    const start = new Date(dateStored);
+    const end = new Date(today);
+    const range = moment.range(start, end);
+
+    daysSmokeFree = range.diff('days') + " Days";
+
+    if (dateStored === "none") {
+      setBtns(true);
+      setDaysSmokeFree("0 Days");
+      setQuitDate("You're still smoking...");
+      setSmokingStatus(smokingStatus);
+      console.log('working');
+    } else {
+      setBtns(false);
+      setQuitDate("You Quit Smoking On: \n" + dateStored);
+      setDaysSmokeFree(daysSmokeFree);
+      setSmokingStatus(smokingStatus);
+      console.log('working 2 ' + dateStored);
+    }
   };
 
-  return (
+  if (!fontsLoaded) {
+    return <AppLoading />;
+  }
+  else {
+    return (
     <View style={styles.container}>
       <LinearGradient 
         colors={
@@ -156,7 +173,7 @@ async function smokeFree(dateStored, smokingStatus) {
             ? styles.quitContainer
             : styles.hideQuit 
           }>
-          <QuitButton  quitNow={quitNow} />
+          <QuitButton quitNow={quitNow} />
         </View>
 
         <View style={
@@ -170,6 +187,7 @@ async function smokeFree(dateStored, smokingStatus) {
 
     </View>
   );
+}
 }
 
 const styles = StyleSheet.create({
@@ -201,25 +219,25 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: "#141414",
     textAlign: 'center',
-    // fontFamily: "PoppinsRegular",
+    fontFamily: "PoppinsRegular",
   },
   textMd: { //font family, semi-bold
     fontSize: 20,
     color: "#141414",
     textAlign: 'center',
-    // fontFamily: "PoppinsSemiBold",
+    fontFamily: "PoppinsSemiBold",
   },
   quiteDate: { //font family bold
   color: "#141414",
   fontSize: 20,
   textAlign: 'center',
-    // fontFamily: "PoppinsBold",
+    fontFamily: "PoppinsBold",
   },
   smokeFree: {
     color: "#141414",
     fontSize: 40,
     textTransform: "uppercase",
-    // fontFamily: "PoppinsBold",
+    fontFamily: "PoppinsBold",
   },
   image: {
     width: Dimensions.get("window").width - 100,
