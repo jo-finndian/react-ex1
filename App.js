@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Moment from "moment";
 import { extendMoment } from "moment-range";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { AppLoading } from 'expo';
+// import { useIsFocused } from "@react-navigation/native";
 
 import {
   StyleSheet,
@@ -13,12 +14,25 @@ import {
   Image,
   Dimensions,
   AsyncStorage,
+  Animated
 } from "react-native";
 
+// import FadeIn from "./screens/FadeIn";
 import ResetButton from "./components/ResetButton";
 import QuitButton from "./components/QuitButton";
 
 export default function App() {
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 1000,
+      useNativeDriver: true,
+    }).start();
+
+    return () => fadeAnim.setValue(0); //checking to see if checking out of navigation, and resetting
+  }, [fadeAnim]);
+
   let [fontsLoaded] = useFonts({
     'PoppinsSemiBold': require('./assets/fonts/Poppins-SemiBold.ttf'),
     'PoppinsBold': require('./assets/fonts/Poppins-Bold.ttf'),
@@ -134,7 +148,8 @@ export default function App() {
       console.log('working 2 ' + dateStored);
     }
   };
-
+  
+  const fadeAnim = useRef(new Animated.Value(0)).current; // Initial value for opacity: 0
   if (!fontsLoaded) {
     return <AppLoading />;
   }
@@ -153,19 +168,47 @@ export default function App() {
           height: Dimensions.get("window").height,
         }}
       />
-      <View style={styles.topContainer}>
+      <Animated.View style={{
+         flex: 3,
+         alignItems: "center",
+         justifyContent: "center",
+         color: "#141414",
+         backgroundColor: "#fff",
+         borderRadius: 20,
+         shadowColor: "#000",
+         shadowOffset: {
+           width: 0,
+           height: 2,
+           },
+         shadowOpacity: 0.5,
+         shadowRadius: 3.84,
+         elevation: 5,
+         marginTop: 60,
+         paddingVertical: 150,
+         width: Dimensions.get("window").width - 50,
+         opacity: fadeAnim,
+         transform: [
+           {
+           translateY: fadeAnim.interpolate({
+               inputRange: [0, 1],
+               outputRange: [50, 0],
+           }),
+           },
+         ],
+      }}>
+
         <Text style={styles.smokeFree}>{daysSmokeFree}</Text>
         <Text style={styles.textMd}>Smoke Free</Text>
         <Image
-          style={styles.image}
-          source={
-            btns
-            ? require("./assets/images/cigarette.png")
-            : require("./assets/images/no-cigarette.png")
-          }
+        style={styles.image}
+        source={
+          btns
+          ? require("./assets/images/cigarette.png")
+          : require("./assets/images/no-cigarette.png")
+        }
         />
         <Text style={styles.quiteDate}>{quitDate}</Text>
-      </View>
+      </Animated.View>
 
       <View style={styles.btnContainer}>
         <View style={
@@ -195,25 +238,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-  },
-  topContainer: {
-    flex: 3,
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#141414",
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: {
-        width: 0,
-        height: 2,
-    },
-    shadowOpacity: 0.5,
-    shadowRadius: 3.84,
-    elevation: 5,
-    marginTop: 60,
-    paddingVertical: 150,
-    width: Dimensions.get("window").width - 50,
   },
   text: { //font family regular
     fontSize: 20,
